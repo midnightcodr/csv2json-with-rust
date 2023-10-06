@@ -1,5 +1,7 @@
+use std::env;
 use std::error::Error;
-use std::io;
+use std::fs;
+use std::io::{self, BufRead, BufReader};
 type JsonObject = serde_json::Map<String, serde_json::Value>;
 
 fn make_json_object(headers: &csv::StringRecord, record: csv::StringRecord) -> JsonObject {
@@ -11,9 +13,15 @@ fn make_json_object(headers: &csv::StringRecord, record: csv::StringRecord) -> J
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut rdr = csv::Reader::from_reader(io::stdin());
-    let headers = rdr.headers()?.clone();
-    for result in rdr.records() {
+    let input = env::args().nth(1);
+    let reader: Box<dyn BufRead> = match input {
+        None => Box::new(BufReader::new(io::stdin())),
+        Some(filename) => Box::new(BufReader::new(fs::File::open(filename).unwrap())),
+    };
+
+    let mut csvrdr = csv::Reader::from_reader(reader);
+    let headers = csvrdr.headers()?.clone();
+    for result in csvrdr.records() {
         let result = result?;
         let jo = make_json_object(&headers, result);
         println!("{}", serde_json::to_string(&jo).unwrap());
